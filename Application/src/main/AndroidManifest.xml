@@ -1,5 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!--
+<?xml version="1.0" encoding="UTF-8"?><!--
  Copyright 2013 The Android Open Source Project
 
  Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,17 +21,23 @@
 
     <!-- Card emulation was introduced in API 19. -->
     <!-- Min/target SDK versions (<uses-sdk>) managed by build.gradle -->
-    <uses-feature android:name="android.hardware.nfc.hce" android:required="true" />
+    <uses-feature
+        android:name="android.hardware.nfc.hce"
+        android:required="true" />
+
     <uses-permission android:name="android.permission.NFC" />
 
-    <application android:allowBackup="true"
-        android:label="@string/app_name"
+
+    <application
+        android:allowBackup="true"
         android:icon="@drawable/ic_launcher"
+        android:label="@string/app_name"
         android:theme="@style/AppTheme">
 
         <!-- Basic UI for sample discoverability. -->
-        <activity android:name=".MainActivity"
-                  android:label="@string/app_name">
+        <activity
+            android:name=".MainActivity"
+            android:label="@string/app_name">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -41,18 +46,37 @@
 
         <!-- BEGIN_INCLUDE(CardEmulationManifest) -->
         <!-- Service for handling communication with NFC terminal. -->
-        <service android:name=".CardService"
-                 android:exported="true"
-                 android:permission="android.permission.BIND_NFC_SERVICE">
+        <!--
+        -We're exporting our service externally to let the Android OS know that our app has the service for handling HCE.
+
+        -Our aid_list.xml file tells the Android OS that our application can handle HCE events for readers that require category other and select the AID F0010203040506.
+        This way, when the reader sends a request such as SELECT F0010203040506, the Android OS knows that our app can take it from there.
+        That triggers our HCEService.processCommandApdu() method, and then we can handle the command and any payload that it sends.
+        -->
+        <service
+            android:name=".CardService"
+            android:exported="true"
+            android:permission="android.permission.BIND_NFC_SERVICE">
+
             <!-- Intent filter indicating that we support card emulation. -->
+            <!--
+            -when the Android system detects that an external Card Reader is trying to read a card, it fires a `HOST_APDU_SERVICE` action,
+             our service having registered to that action, will be called, and then we can do whatever we want once our service is called into action
+            -->
             <intent-filter>
-                <action android:name="android.nfc.cardemulation.action.HOST_APDU_SERVICE"/>
-                <category android:name="android.intent.category.DEFAULT"/>
+                <action android:name="android.nfc.cardemulation.action.HOST_APDU_SERVICE" />
+                <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
+
             <!-- Required XML configuration file, listing the AIDs that we are emulating cards
                  for. This defines what protocols our card emulation service supports. -->
-            <meta-data android:name="android.nfc.cardemulation.host_apdu_service"
-                       android:resource="@xml/aid_list"/>
+            <!--
+            -in order for the system to know which services to call based on which AID the reader is trying to communicate with,
+            we need to declare the `meta-data` tag and point to an XML resource.
+             -->
+            <meta-data
+                android:name="android.nfc.cardemulation.host_apdu_service"
+                android:resource="@xml/aid_list" />
         </service>
         <!-- END_INCLUDE(CardEmulationManifest) -->
     </application>

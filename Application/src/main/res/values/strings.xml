@@ -19,4 +19,5 @@ limitations under the License.
     <string name="service_name">CardEmulation Sample</string>
     <string name="card_title">Sample Loyalty Card</string>
     <string name="account_number">Account Number</string>
+    <string name="loyalty_card_aid">F222222222</string>
 </resources>

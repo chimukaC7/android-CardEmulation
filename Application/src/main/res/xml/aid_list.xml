@@ -1,5 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!--
+<?xml version="1.0" encoding="utf-8"?><!--
 Copyright (C) 2013 The Android Open Source Project
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,6 +31,14 @@ limitations under the License.
 <host-apdu-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:description="@string/service_name"
     android:requireDeviceUnlock="false">
+
+    <!--
+    -If you set the android:requireDeviceUnlock attribute to "true" for your HCE service,
+    Android will prompt the user to unlock the device when you tap an NFC reader that selects an AID that is resolved to your service.
+    -After unlocking, Android will show a dialog prompting the user to tap again to complete the transaction.
+    This is necessary because the user may have moved the device away from the NFC reader in order to unlock it.
+    -->
+
     <!--
     If category="payment" is used for any aid-groups, you must also add an android:apduServiceBanner
     attribute above, like so:
@@ -44,21 +51,23 @@ limitations under the License.
        - drawable-hdpi:   390x144 px
        - drawable-mdpi:   260x96  px
 
-    The apduServiceBanner is displayed in the "Tap & Pay" menu in the system Settings app, and
-    is only displayed for apps which implement the "payment" AID category.
+    The apduServiceBanner is displayed in the "Tap & Pay" menu in the system Settings app, and is only displayed for apps which implement the "payment" AID category.
 
-    Since this sample is implementing a non-standard card type (a loyalty card, specifically), we
-    do not need to define a banner.
+    Since this sample is implementing a non-standard card type (a loyalty card, specifically), we  do not need to define a banner.
 
-    Important: category="payment" should only be used for industry-standard payment cards. If you are
-        implementing a closed-loop payment system (e.g. stored value cards for a specific merchant
-        or transit system), use category="other". This is because only one "payment" card may be
-        active at a time, whereas all "other" cards are active simultaneously (subject to AID
-        dispatch).
+    Important: category="payment" should only be used for industry-standard payment cards.
+    If you are implementing a closed-loop payment system (e.g. stored value cards for a specific merchant or transit system), use category="other".
+    This is because only one "payment" card may be active at a time, whereas all "other" cards are active simultaneously (subject to AID dispatch).
     -->
 
-    <aid-group android:description="@string/card_title" android:category="other">
-        <aid-filter android:name="F222222222"/>
+    <!--
+    -
+    -->
+
+    <aid-group
+        android:category="other"
+        android:description="@string/card_title">
+        <aid-filter android:name="@string/loyalty_card_aid" />
     </aid-group>
-<!-- END_INCLUDE(CardEmulationXML) -->
+    <!-- END_INCLUDE(CardEmulationXML) -->
 </host-apdu-service>

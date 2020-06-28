@@ -24,8 +24,8 @@ import android.util.Log;
 /**
  * Utility class for persisting account numbers to disk.
  *
- * <p>The default SharedPreferences instance is used as the backing storage. Values are cached
- * in memory for performance.
+ * <p>The default SharedPreferences instance is used as the backing storage.
+ * Values are cached in memory for performance.
  *
  * <p>This class is thread-safe.
  */

@@ -38,6 +38,15 @@ import com.example.android.common.logger.MessageOnlyLogFilter;
  */
 public class MainActivity extends SampleActivityBase {
 
+    /*
+    -Host Card Emulation (HCE) is the term describing on-device technology that permits a phone to perform card emulation on an NFC-enabled device
+    without relying on access to a secure element.
+
+    -This means that your phone can be used to mimic (emulate) the behavior of any contactless card
+
+    -Those uses can be customer loyalty card emulation, public transit card emulation, and many more such as keycard emulation described in this post.
+     */
+
     public static final String TAG = "MainActivity";
 
     // Whether the Log Fragment is currently shown

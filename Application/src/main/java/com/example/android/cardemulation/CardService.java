@@ -22,6 +22,11 @@ import com.example.android.common.logger.Log;
 
 import java.util.Arrays;
 
+import static com.example.android.cardemulation.Utils.BuildSelectAPDU;
+import static com.example.android.cardemulation.Utils.ByteArrayToHexString;
+import static com.example.android.cardemulation.Utils.ConcatArrays;
+import static com.example.android.cardemulation.Utils.HexStringToByteArray;
+
 /**
  * This is a sample APDU Service which demonstrates how to interface with the card emulation support
  * added in Android 4.4, KitKat.
@@ -38,18 +43,37 @@ import java.util.Arrays;
  * byte-array based communication channel. It is left to developers to implement higher level
  * protocol support as needed.
  */
+
+
+//To emulate an NFC card using host-based card emulation, you need to create a Service component that handles the NFC transactions.
+//HCEService doesn't require the application to be active to handle the response. That means that our UI may or may not be shown at the time
 public class CardService extends HostApduService {
-    private static final String TAG = "CardService";
-    // AID for our loyalty card service.
-    private static final String SAMPLE_LOYALTY_CARD_AID = "F222222222";
+
+    private static final String TAG = "Host Card Service";
+
     // ISO-DEP command HEADER for selecting an AID.
     // Format: [Class | Instruction | Parameter 1 | Parameter 2]
     private static final String SELECT_APDU_HEADER = "00A40400";
+
+    // AID for our loyalty card service.
+    // Application ID (AID)-it defines a way to select applications
+    private final String AID_SAMPLE_LOYALTY_CARD = getString(R.string.loyalty_card_aid);
+
     // "OK" status word sent in response to SELECT AID command (0x9000)
     private static final byte[] SELECT_OK_SW = HexStringToByteArray("9000");
+
     // "UNKNOWN" status word sent in response to invalid APDU command (0x0000)
     private static final byte[] UNKNOWN_CMD_SW = HexStringToByteArray("0000");
-    private static final byte[] SELECT_APDU = BuildSelectApdu(SAMPLE_LOYALTY_CARD_AID);
+
+    String STATUS_SUCCESS = "9000";
+    String STATUS_FAILED = "6F00";
+    String STATUS_UNKNOWN = "0000";
+    String DEFAULT_CLA = "00";
+    String CLA_NOT_SUPPORTED = "6E00";
+    String SELECT_INS = "A4";
+    String INS_NOT_SUPPORTED = "6D00";
+    int MIN_APDU_LENGTH = 12;
+
 
     /**
      * Called if the connection to the NFC card is lost, in order to let the application know the
@@ -59,115 +83,73 @@ public class CardService extends HostApduService {
      * @param reason Either DEACTIVATION_LINK_LOSS or DEACTIVATION_DESELECTED
      */
     @Override
-    public void onDeactivated(int reason) { }
+    public void onDeactivated(int reason) {
+        Log.d(TAG, "Deactivated: " + reason);
+    }
 
     /**
-     * This method will be called when a command APDU has been received from a remote device. A
-     * response APDU can be provided directly by returning a byte-array in this method. In general
-     * response APDUs must be sent as quickly as possible, given the fact that the user is likely
-     * holding his device over an NFC reader when this method is called.
+     * called whenever a NFC reader sends an Application Protocol Data Unit (APDU) to your service.
+     * APDUs are  the application-level packets being exchanged between the NFC reader and your HCE service.(APDU commands are byte arrays)
+     * That application-level protocol is half-duplex: the NFC reader will send you a command APDU, and it will wait for you to send a response APDU in return.
      *
-     * <p class="note">If there are multiple services that have registered for the same AIDs in
-     * their meta-data entry, you will only get called if the user has explicitly selected your
-     * service, either as a default or just for the next tap.
+     * This method will be called when a command APDU has been received from a remote device.
+     * A response APDU can be provided directly by returning a byte-array in this method.
+     * In general response APDUs must be sent as quickly as possible,
+     * given the fact that the user is likely holding his device over an NFC reader when this method is called.
+     *
+     * <p class="note">If there are multiple services that have registered for the same AIDs in their meta-data entry,
+     * you will only get called if the user has explicitly selected your service, either as a default or just for the next tap.
      *
      * <p class="note">This method is running on the main thread of your application. If you
      * cannot return a response APDU immediately, return null and use the {@link
      * #sendResponseApdu(byte[])} method later.
      *
-     * @param commandApdu The APDU that received from the remote device
+     * @param APDU_command The APDU that received from the reader device
      * @param extras A bundle containing extra data. May be null.
      * @return a byte-array containing the response APDU, or null if no response APDU can be sent
      * at this point.
      */
     // BEGIN_INCLUDE(processCommandApdu)
     @Override
-    public byte[] processCommandApdu(byte[] commandApdu, Bundle extras) {
-        Log.i(TAG, "Received APDU: " + ByteArrayToHexString(commandApdu));
+    public byte[] processCommandApdu(byte[] APDU_command, Bundle extras) {
+        //The `processCommandApdu` method will be called every time a card reader sends an APDU command that is filtered by our manifest filter.
+        Log.i(TAG, "Received APDU: " + ByteArrayToHexString(APDU_command));
+
+        /*
+        -Android uses the Application ID(AID) to determine which HCE service the reader wants to talk to.
+        -Typically, the first APDU an NFC reader sends to your device is a "SELECT AID" APDU (this APDU contains the AID that the reader wants to talk to)
+        -Android extracts that AID from the APDU, resolves it to an HCE service, then forwards that APDU to the resolved service.
+         */
+
+
         // If the APDU matches the SELECT AID command for this service,
         // send the loyalty card account number, followed by a SELECT_OK status trailer (0x9000).
-        if (Arrays.equals(SELECT_APDU, commandApdu)) {
+        // SELECT_APDU_HEADER + CARD_AID
+        if (Arrays.equals(BuildSelectAPDU(SELECT_APDU_HEADER, AID_SAMPLE_LOYALTY_CARD), APDU_command))
+        {
             String account = AccountStorage.GetAccount(this);
-            byte[] accountBytes = account.getBytes();
-            Log.i(TAG, "Sending account number: " + account);
-            return ConcatArrays(accountBytes, SELECT_OK_SW);
+
+            //You can send a response APDU by returning the bytes of the response APDU
+            // Format: [Data Field | SW_1 SW_2]
+            return ConcatArrays(account.getBytes(), HexStringToByteArray(STATUS_SUCCESS));
+
         } else {
-            return UNKNOWN_CMD_SW;
+
+            String hexAPDU_command = ByteArrayToHexString(APDU_command);
+
+            if (hexAPDU_command.length() < MIN_APDU_LENGTH) {
+                return HexStringToByteArray(STATUS_FAILED);
+            } else if (!hexAPDU_command.substring(0, 2).equals(DEFAULT_CLA)) {
+                return HexStringToByteArray(CLA_NOT_SUPPORTED);
+            } else if (!hexAPDU_command.substring(2, 4).equals(SELECT_INS)) {
+                return HexStringToByteArray(INS_NOT_SUPPORTED);
+            } else {
+                return HexStringToByteArray(STATUS_FAILED);
+            }
+
         }
     }
     // END_INCLUDE(processCommandApdu)
 
-    /**
-     * Build APDU for SELECT AID command. This command indicates which service a reader is
-     * interested in communicating with. See ISO 7816-4.
-     *
-     * @param aid Application ID (AID) to select
-     * @return APDU for SELECT AID command
-     */
-    public static byte[] BuildSelectApdu(String aid) {
-        // Format: [CLASS | INSTRUCTION | PARAMETER 1 | PARAMETER 2 | LENGTH | DATA]
-        return HexStringToByteArray(SELECT_APDU_HEADER + String.format("%02X",
-                aid.length() / 2) + aid);
-    }
 
-    /**
-     * Utility method to convert a byte array to a hexadecimal string.
-     *
-     * @param bytes Bytes to convert
-     * @return String, containing hexadecimal representation.
-     */
-    public static String ByteArrayToHexString(byte[] bytes) {
-        final char[] hexArray = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
-        char[] hexChars = new char[bytes.length * 2]; // Each byte has two hex characters (nibbles)
-        int v;
-        for (int j = 0; j < bytes.length; j++) {
-            v = bytes[j] & 0xFF; // Cast bytes[j] to int, treating as unsigned value
-            hexChars[j * 2] = hexArray[v >>> 4]; // Select hex character from upper nibble
-            hexChars[j * 2 + 1] = hexArray[v & 0x0F]; // Select hex character from lower nibble
-        }
-        return new String(hexChars);
-    }
-
-    /**
-     * Utility method to convert a hexadecimal string to a byte string.
-     *
-     * <p>Behavior with input strings containing non-hexadecimal characters is undefined.
-     *
-     * @param s String containing hexadecimal characters to convert
-     * @return Byte array generated from input
-     * @throws java.lang.IllegalArgumentException if input length is incorrect
-     */
-    public static byte[] HexStringToByteArray(String s) throws IllegalArgumentException {
-        int len = s.length();
-        if (len % 2 == 1) {
-            throw new IllegalArgumentException("Hex string must have even number of characters");
-        }
-        byte[] data = new byte[len / 2]; // Allocate 1 byte per 2 hex characters
-        for (int i = 0; i < len; i += 2) {
-            // Convert each character into a integer (base-16), then bit-shift into place
-            data[i / 2] = (byte) ((Character.digit(s.charAt(i), 16) << 4)
-                    + Character.digit(s.charAt(i+1), 16));
-        }
-        return data;
-    }
-
-    /**
-     * Utility method to concatenate two byte arrays.
-     * @param first First array
-     * @param rest Any remaining arrays
-     * @return Concatenated copy of input arrays
-     */
-    public static byte[] ConcatArrays(byte[] first, byte[]... rest) {
-        int totalLength = first.length;
-        for (byte[] array : rest) {
-            totalLength += array.length;
-        }
-        byte[] result = Arrays.copyOf(first, totalLength);
-        int offset = first.length;
-        for (byte[] array : rest) {
-            System.arraycopy(array, 0, result, offset, array.length);
-            offset += array.length;
-        }
-        return result;
-    }
 }
